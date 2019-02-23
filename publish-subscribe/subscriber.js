@@ -1,29 +1,35 @@
-const zmq = require("zeromq"),
-    sock = zmq.socket("sub");
+const zmq = require("zeromq");
+const sock = zmq.socket("sub");
 
 const sys = require("util");
 const win = require("node-windows");
 
+let timeBefore = new Date().getTime();
+
+// RTT is the execution time of below 2 lines
 sock.connect("tcp://127.0.0.1:3000");
 sock.subscribe("time");
+let timeAfter = new Date().getTime();
+let RTT = timeAfter - timeBefore;
 console.log("Subscriber connected to port 3000");
+console.log("Calculated RTT is: " + RTT);
 
 let timeSynced = false;
 
 sock.on("message", function(topic, message) {
-    let newTime = new Date(parseInt(message));
-
     if (!timeSynced) {
+        console.log("server time received: " + message);
+        // calculate new time using server time + RTT / 2
+        let newTime = new Date(parseInt(message) + RTT / 2);
         setSystemTime(newTime);
-        timeSynced = true;
-    }
 
-    console.log(
-        "received a message related to:",
-        topic.toString(),
-        ", containing message:",
-        message.toString()
-    );
+        // we only need to sync once
+        timeSynced = true;
+    } else {
+        console.log("clock has been synced successfully, closing socket now");
+        sock.close();
+        process.exit(0);
+    }
 });
 
 function setSystemTime(date) {
