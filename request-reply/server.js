@@ -1,14 +1,25 @@
-// Hello World server in Node.js
-// Connects REP socket to tcp://*:5560
-// Expects "Hello" from client, replies with "World"
+const zmq = require("zeromq");
 
-var zmq = require("zmq"),
-    responder = zmq.socket("rep");
+var responder = zmq.socket("rep");
 
-responder.connect("tcp://localhost:5560");
-responder.on("message", function(msg) {
-    console.log("received request:", msg.toString());
+responder.on("message", function(request) {
+    console.log("Received request: [", request.toString(), "]");
+
     setTimeout(function() {
-        responder.send("World");
+        // send time back to client.
+        let time = new Date();
+        responder.send(time.getTime().toString());
     }, 1000);
+});
+
+responder.bind("tcp://*:5555", function(err) {
+    if (err) {
+        console.log(err);
+    } else {
+        console.log("Listening on 5555...");
+    }
+});
+
+process.on("SIGINT", function() {
+    responder.close();
 });
